@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rive Hello World</title>
+    <title>Aldera VR Showroom</title>
     <style>
       html, body {
         margin: 0;
@@ -15,49 +15,47 @@
       canvas {
         margin: 0;
         padding: 0;
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 100%;
-        max-height: 100%;
         display: block;
+        background-color: black;
       }
     </style>
   </head>
-  <body style="background-color: #000000; ">
+  <body>
     <canvas id="canvas"></canvas>
-
     <script src="https://unpkg.com/@rive-app/webgl2"></script>
     <script>
       const canvas = document.getElementById("canvas");
-      const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2
-      console.log("paso0");
+      const { Layout, Fit, Alignment } = rive;
+    
       const r = new rive.Rive({
         src: "assets/vr_showroom-v3.riv",
-        canvas,
+        canvas: canvas,
+        audoBind: true,
         autoplay: true,
-        stateMachines: "Main State Machine",
+        stateMachines: "State Machine 1",
+        layout: new Layout({
+          fit: Fit.Layout,
+          alignment: Alignment.Center,
+        }),
         onLoad: () => {
-          // Ensure the drawing surface matches the canvas size and device pixel ratio
+          console.log("Comienza Callback");
           r.resizeDrawingSurfaceToCanvas();
-          console.log("paso1")
-          const namedVM = r.viewModelByName("MainVM");
-          console.log("paso2")
-          const vmiDefault = namedVM.instanceByName("Instance");
-          console.log("paso3")
-          r.bindViewModelInstance(vmiDefault);
-          console.log("paso4")
-        }
+          const vm = r.viewModelByName("MainVM");
+          console.log("Acceso al ViewModel");
+          const vmi = vm.defaultInstance();
+          console.log("Creación de Instancia");
+          r.bindViewModelInstance(vmi);
+          console.log("Binding de Instancia");
+        },
       });
-           function resizeCanvas(){
-            canvas.width = window.innerWidth * dpr;
-            canvas.height = window.innerHeight * dpr;
-            // Quitar el menos 100 cuando sea ambiente productivo
+      function resizeCanvas(){
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
             r.resizeDrawingSurfaceToCanvas();
-            console.log("redimensionando")
           }
       window.addEventListener('resize', resizeCanvas, false); 
       resizeCanvas();
-      console.log("paso5")
+      console.log("Se finalizó el script");
     </script>
   </body>
-</html> 
+</html>
