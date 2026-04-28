@@ -2,8 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Aldera VR Showroom</title>
+    <!-- Viewport optimizado para iOS: clave para que innerWidth sea confiable -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Aldera VR</title>
     <style>
       html, body {
         margin: 0;
@@ -11,26 +12,123 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
+        position: fixed; /* Evita scroll bounce en iOS */
+        -webkit-text-size-adjust: 100%;
       }
       canvas {
-        margin: 0;
-        padding: 0;
         display: block;
+        width: 100%;
+        height: 100%;
         background-color: black;
+        touch-action: none;
+      }
+      /* Basic modal styles */
+      .modal {
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background-color: rgba(0,0,0,0.5);
+          display: flex; justify-content: center; align-items: center;
+          opacity: 0; visibility: hidden; pointer-events: none;
+          transition: opacity 0.3s ease, visibility 0.3s ease;
+          z-index: 1000;
+      }
+      .modal.active {
+          opacity: 1; visibility: visible; pointer-events: auto;
+      }
+      .modal-content {
+          width: 90vw;
+          max-width: 1800px;
+          height: 80vh;
+          padding: 0;
+          border-radius: 10px;
+          position: relative;
+          box-shadow: 0 0 10px rgba(0,0,0,0.3);
+          background: white;
+      }
+      .close {
+          position: absolute;
+          top: 10px;
+          right: 15px;
+          font-size: 24px;
+          font-weight: bold;
+          color: #333;
+          cursor: pointer;
+          z-index: 10; /* Evita que el canvas lo tape */
+          background: rgba(255,255,255,0.85);
+          width: 32px; height: 32px;
+          line-height: 32px;
+          text-align: center;
+          border-radius: 50%;
+      }
+      button {
+          padding: 10px 15px;
+          font-size: 16px;
+          cursor: pointer;
+      }
+      .pano-image {
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          border-radius: 10px;
+      }
+      .pano-image canvas { 
+          position: absolute; top:0; left:0; width:100%; height:100%; 
       }
     </style>
+    <script src="scripts/three.min.js"></script>
+    <script src="scripts/panolens.min.js"></script>
   </head>
   <body>
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span id="closeModalBtn" class="close">&times;</span>
+            <div class="pano-image"></div> 
+        </div>
+    </div>
     <canvas id="canvas"></canvas>
     <script src="https://unpkg.com/@rive-app/webgl2"></script>
     <script>
-      const canvas = document.getElementById("canvas");
-      const { Layout, Fit, Alignment } = rive;
-    
+      // 360 Modal
+      let viewer = null;
+      const modal = document.getElementById("myModal");
+      const closeBtn = document.getElementById("closeModalBtn");
+
+      function initViewer(url) {
+          const panoImage = document.querySelector('.pano-image');
+          panoImage.innerHTML = '';
+          const img = new Image();
+          img.onload = () => {
+              const panorama = new PANOLENS.ImagePanorama(url);
+              viewer = new PANOLENS.Viewer({ container: panoImage });
+              viewer.add(panorama);
+              requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+          };
+          img.onerror = () => {
+              panoImage.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#d00;font-size:18px;background:#fff;">Error: imagen no encontrada.</div>';
+          };
+          img.src = url;
+      }
+
+      function abrirModal(url) {
+          modal.classList.add('active');
+          if (viewer) { viewer.dispose(); viewer = null; }
+          initViewer(url);
+      }
+
+      function cerrarModal() {
+          modal.classList.remove('active');
+          modal.addEventListener('transitionend', () => {
+              if (viewer) { viewer.dispose(); viewer = null; }
+          }, { once: true });
+      }
+      closeBtn.addEventListener("click", cerrarModal);
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarModal(); });
+      window.addEventListener("click", (e) => { if (e.target === modal && modal.classList.contains('active')) cerrarModal(); });
+      // Rive
+      const canvas = document.getElementById("canvas");                                                                
+      const {Layout, Fit, Alignment } = rive;
       const r = new rive.Rive({
-        src: "assets/vr_showroom-v3.riv",
+        src: "assets/vr_showroom-v6.riv",
         canvas: canvas,
-        // audoBind: true,
         autoplay: true,
         stateMachines: "State Machine 1",
         layout: new Layout({
@@ -38,24 +136,50 @@
           alignment: Alignment.Center,
         }),
         onLoad: () => {
-          console.log("Comienza Callback");
+          
           r.resizeDrawingSurfaceToCanvas();
           const vm = r.viewModelByName("MainVM");
-          console.log("Acceso al ViewModel");
+          
           const vmi = vm.defaultInstance();
-          console.log("Creación de Instancia");
+          
           r.bindViewModelInstance(vmi);
-          console.log("Binding de Instancia");
+
+          const panoB = r.viewModelInstance.viewModel("propertyOfAereaVM");
+          const canchas = panoB.viewModel("canchasPanoBtn");
+          canchas.trigger("panoClick").on((event) => {
+            abrirModal("assets/panoramas/VR4.jpg")
+          });
+          const juegos = panoB.viewModel("juegosPanoBtn");
+          juegos.trigger("panoClick").on((event) => {
+            abrirModal("assets/panoramas/VR3.jpg")
+          });
+          const entrada = panoB.viewModel("entradaPanoBtn");
+          entrada.trigger("panoClick").on((event) => {
+            abrirModal("assets/panoramas/VR1.jpg")
+          });
+          const ejercicios = panoB.viewModel("ejerciciosPanoBtn");
+          ejercicios.trigger("panoClick").on((event) => {
+            abrirModal("assets/panoramas/VR2.jpg")
+          });
+          
         },
       });
       function resizeCanvas(){
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            r.resizeDrawingSurfaceToCanvas();
-          }
-      window.addEventListener('resize', resizeCanvas, false); 
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        r.resizeDrawingSurfaceToCanvas();
+      }
+      window.addEventListener('resize', resizeCanvas, { passive: true });
+      window.addEventListener('orientationchange', resizeCanvas, { passive: true });
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', resizeCanvas, { passive: true });
+      }
+      window.addEventListener('load', () => {
+        setTimeout(resizeCanvas, 50);
+      });
       resizeCanvas();
-      console.log("Se finalizó el script");
     </script>
   </body>
 </html>
